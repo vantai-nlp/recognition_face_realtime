@@ -1,3 +1,5 @@
+# classify face: preprocessing (face images) -> facenet (128 dim vector) -> classifier (SVC, ...) -> model -> save model
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -19,11 +21,13 @@ class training:
     def main_train(self):
         with tf.Graph().as_default():
             with tf.Session() as sess:
+                # load face image
                 img_data = facenet.get_dataset(self.datadir)
                 path, label = facenet.get_image_paths_and_labels(img_data)
                 print('Classes: %d' % len(img_data))
                 print('Images: %d' % len(path))
 
+                # transform face images to 128 dim vector
                 facenet.load_model(self.modeldir)
                 images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
                 embeddings = tf.get_default_graph().get_tensor_by_name("embeddings:0")

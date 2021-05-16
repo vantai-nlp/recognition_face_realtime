@@ -1,3 +1,7 @@
+# class preprocesses: load dataset and align (get faces and resize)
+# algorithm: pretrain model mtcnn (pretrain file in ./npy) and use detect_face.py to load model
+# input_datadir: dir dataset, output_datadir: dir contain align image (faces and resize) of each class
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -9,21 +13,26 @@ import facenet
 import detect_face
 
 class preprocesses:
-    def __init__(self, input_datadir, output_datadir):
+    def __init__(self, pretrain_mtcnn_dir, input_datadir, output_datadir):
         self.input_datadir = input_datadir
         self.output_datadir = output_datadir
+        self.pretrain_mtcnn_dir = pretrain_mtcnn_dir
 
     def collect_data(self):
+        # check output_datadir, if exist -> pass and else -> create output_datadir
         output_dir = os.path.expanduser(self.output_datadir)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+        # input: input_datadir, output: return list of class and image paths
         dataset = facenet.get_dataset(self.input_datadir)
+
+        # load mtcnn
         with tf.Graph().as_default():
             gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
             sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
             with sess.as_default():
-                pnet, rnet, onet = detect_face.create_mtcnn(sess, './npy')
+                pnet, rnet, onet = detect_face.create_mtcnn(sess, self.pretrain_mtcnn_dir)
 
         minsize = 20  # minimum size of face
         threshold = [0.6, 0.7, 0.7]  # three steps's threshold
@@ -38,10 +47,14 @@ class preprocesses:
         with open(bounding_boxes_filename, "w") as text_file:
             nrof_images_total = 0
             nrof_successfully_aligned = 0
+            
+            # traverse each class in dataset
             for cls in dataset:
                 output_class_dir = os.path.join(output_dir, cls.name)
                 if not os.path.exists(output_class_dir):
                     os.makedirs(output_class_dir)
+
+                # load image and alige
                 for image_path in cls.image_paths:
                     nrof_images_total += 1
                     filename = os.path.splitext(os.path.split(image_path)[1])[0]
